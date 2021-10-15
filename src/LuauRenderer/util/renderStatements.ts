@@ -21,7 +21,10 @@ export function renderStatements(state: RenderState, statements: luau.List<luau.
 		hasFinalStatement ||= luau.isFinalStatement(listNode.value);
 
 		state.pushListNode(listNode);
-		result += render(state, listNode.value);
+
+		const rendered = render(state, listNode.value);
+		state.positionMapping.set(listNode.value, result.length);
+		result += rendered;
 		state.popListNode();
 
 		listNode = listNode.next;

@@ -88,7 +88,11 @@ export function transformStatement(state: TransformState, node: ts.Statement): l
 	if (node.modifiers?.some(v => v.kind === ts.SyntaxKind.DeclareKeyword)) return NO_EMIT();
 	const transformer = TRANSFORMER_BY_KIND.get(node.kind);
 	if (transformer) {
-		return transformer(state, node);
+		const list = transformer(state, node);
+		luau.list.forEachListNode(list, luauNode => {
+			luauNode.value.source = node.pos;
+		});
+		return list;
 	}
 	assert(false, `Unknown statement: ${getKindName(node.kind)}`);
 }

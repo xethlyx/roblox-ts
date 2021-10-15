@@ -1,4 +1,5 @@
 import luau from "LuauAST";
+import { visit } from "LuauRenderer/util/visit";
 import { DiagnosticFactory, errors } from "Shared/diagnostics";
 import { assert } from "Shared/util/assert";
 import { TransformState } from "TSTransformer";
@@ -104,7 +105,18 @@ const TRANSFORMER_BY_KIND = new Map<ts.SyntaxKind, ExpressionTransformer>([
 export function transformExpression(state: TransformState, node: ts.Expression): luau.Expression {
 	const transformer = TRANSFORMER_BY_KIND.get(node.kind);
 	if (transformer) {
-		return transformer(state, node);
+		const transformed = transformer(state, node);
+		transformed.source = node.pos;
+
+		function visitChild(luauNode: luau.Node) {
+			luauNode.source = node.pos;
+		}
+
+		visit(transformed, {
+			before: visitChild,
+		});
+
+		return transformed;
 	}
 	assert(false, `Unknown expression: ${getKindName(node.kind)}`);
 }

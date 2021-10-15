@@ -12,6 +12,7 @@ const INDENT_CHARACTER_LENGTH = INDENT_CHARACTER.length;
 export class RenderState {
 	private indent = "";
 	public seenTempNodes = new Map<number, string>();
+	public positionMapping = new Map<luau.Node, number>();
 	private readonly listNodesStack = new Array<luau.ListNode<luau.Statement>>();
 
 	/**

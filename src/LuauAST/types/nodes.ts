@@ -4,6 +4,7 @@ import luau from "LuauAST";
 export interface Node<T extends luau.SyntaxKind = luau.SyntaxKind> {
 	kind: T;
 	parent?: luau.Node;
+	source?: number;
 }
 
 export interface IndexableExpression<

@@ -34,6 +34,7 @@ import { renderVariableDeclaration } from "LuauRenderer/nodes/statements/renderV
 import { renderWhileStatement } from "LuauRenderer/nodes/statements/renderWhileStatement";
 import { RenderState } from "LuauRenderer/RenderState";
 import { solveTempIds } from "LuauRenderer/solveTempIds";
+import { mapStatements } from "LuauRenderer/util/mapStatements";
 import { renderStatements } from "LuauRenderer/util/renderStatements";
 import ts from "typescript";
 
@@ -100,10 +101,13 @@ export function render<T extends luau.SyntaxKind>(state: RenderState, node: luau
 /**
  * Returns a string that represents the given syntax tree, `ast`, as Luau code.
  */
-export function renderAST(ast: luau.List<luau.Statement>): string {
+export function renderAST(ast: luau.List<luau.Statement>) {
 	const state = new RenderState();
 
 	solveTempIds(state, ast);
 
-	return renderStatements(state, ast);
+	const source = renderStatements(state, ast);
+	const map = mapStatements(state);
+
+	return { source, map };
 }

@@ -119,7 +119,7 @@ export function compileFiles(
 
 	LogService.writeLineIfVerbose(`compiling as ${projectType}..`);
 
-	const fileWriteQueue = new Array<{ sourceFile: ts.SourceFile; source: string }>();
+	const fileWriteQueue = new Array<{ sourceFile: ts.SourceFile; source: string; map: string }>();
 	const progressMaxLength = `${sourceFiles.length}/${sourceFiles.length}`.length;
 
 	let proxyProgram = program;
@@ -193,7 +193,7 @@ export function compileFiles(
 
 			const source = renderAST(luauAST);
 
-			fileWriteQueue.push({ sourceFile, source });
+			fileWriteQueue.push({ sourceFile, ...source });
 		});
 	}
 
@@ -201,7 +201,7 @@ export function compileFiles(
 
 	if (fileWriteQueue.length > 0) {
 		benchmarkIfVerbose("writing compiled files", () => {
-			for (const { sourceFile, source } of fileWriteQueue) {
+			for (const { sourceFile, source, map } of fileWriteQueue) {
 				const outPath = pathTranslator.getOutputPath(sourceFile.fileName);
 				if (
 					!data.writeOnlyChanged ||
@@ -215,6 +215,9 @@ export function compileFiles(
 						afterDeclarations: [transformTypeReferenceDirectives, transformPaths],
 					});
 				}
+
+				const outMapPath = pathTranslator.getSourceMapPath(sourceFile.fileName);
+				fs.outputFileSync(outMapPath, map);
 			}
 		});
 	}

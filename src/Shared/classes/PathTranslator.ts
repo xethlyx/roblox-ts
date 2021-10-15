@@ -1,5 +1,5 @@
 import path from "path";
-import { D_EXT, DTS_EXT, INDEX_NAME, INIT_NAME, LUA_EXT, TS_EXT, TSX_EXT } from "Shared/constants";
+import { D_EXT, DTS_EXT, INDEX_NAME, INIT_NAME, LUA_EXT, MAP_EXT, TS_EXT, TSX_EXT } from "Shared/constants";
 import { assert } from "Shared/util/assert";
 
 class PathInfo {
@@ -55,6 +55,26 @@ export class PathTranslator {
 
 			pathInfo.exts.push(LUA_EXT);
 		}
+
+		return makeRelative(pathInfo);
+	}
+
+	public getSourceMapPath(filePath: string) {
+		const makeRelative = this.makeRelativeFactory();
+		const pathInfo = PathInfo.from(filePath);
+
+		if ((pathInfo.extsPeek() === TS_EXT || pathInfo.extsPeek() === TSX_EXT) && pathInfo.extsPeek(1) !== D_EXT) {
+			pathInfo.exts.pop(); // pop .tsx?
+
+			// index -> init
+			if (pathInfo.fileName === INDEX_NAME) {
+				pathInfo.fileName = INIT_NAME;
+			}
+
+			pathInfo.exts.push(LUA_EXT);
+		}
+
+		pathInfo.exts.push(MAP_EXT);
 
 		return makeRelative(pathInfo);
 	}
