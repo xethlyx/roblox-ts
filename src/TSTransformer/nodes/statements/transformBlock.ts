@@ -5,8 +5,12 @@ import ts from "typescript";
 
 export function transformBlock(state: TransformState, node: ts.Block) {
 	return luau.list.make(
-		luau.create(luau.SyntaxKind.DoStatement, {
-			statements: transformStatementList(state, node.statements),
-		}),
+		luau.create(
+			luau.SyntaxKind.DoStatement,
+			{
+				statements: transformStatementList(state, node.statements),
+			},
+			luau.getNodeSource(node),
+		),
 	);
 }

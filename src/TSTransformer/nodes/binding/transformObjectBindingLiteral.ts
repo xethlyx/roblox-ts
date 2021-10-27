@@ -18,16 +18,23 @@ export function transformObjectBindingLiteral(
 	accessType: ts.Type | ReadonlyArray<ts.Type>,
 ) {
 	for (const property of bindingLiteral.properties) {
+		const nodeSource = luau.getNodeSource(property);
+
 		if (ts.isShorthandPropertyAssignment(property)) {
 			const name = property.name;
 			const value = objectAccessor(state, parentId, accessType, name);
 			const id = transformWritableExpression(state, name, property.objectAssignmentInitializer !== undefined);
+
 			state.prereq(
-				luau.create(luau.SyntaxKind.Assignment, {
-					left: id,
-					operator: "=",
-					right: value,
-				}),
+				luau.create(
+					luau.SyntaxKind.Assignment,
+					{
+						left: id,
+						operator: "=",
+						right: value,
+					},
+					nodeSource,
+				),
 			);
 			assert(luau.isAnyIdentifier(id));
 			if (property.objectAssignmentInitializer) {
@@ -49,11 +56,15 @@ export function transformObjectBindingLiteral(
 			if (ts.isIdentifier(init) || ts.isElementAccessExpression(init) || ts.isPropertyAccessExpression(init)) {
 				const id = transformWritableExpression(state, init, initializer !== undefined);
 				state.prereq(
-					luau.create(luau.SyntaxKind.Assignment, {
-						left: id,
-						operator: "=",
-						right: value,
-					}),
+					luau.create(
+						luau.SyntaxKind.Assignment,
+						{
+							left: id,
+							operator: "=",
+							right: value,
+						},
+						nodeSource,
+					),
 				);
 				if (initializer) {
 					state.prereq(transformInitializer(state, id, initializer));

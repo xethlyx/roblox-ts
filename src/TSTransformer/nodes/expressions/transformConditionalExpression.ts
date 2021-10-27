@@ -10,6 +10,7 @@ export function transformConditionalExpression(state: TransformState, node: ts.C
 	const [whenTrue, whenTruePrereqs] = state.capture(() => transformExpression(state, node.whenTrue));
 	const [whenFalse, whenFalsePrereqs] = state.capture(() => transformExpression(state, node.whenFalse));
 	const type = state.getType(node.whenTrue);
+	const nodeSource = luau.getNodeSource(node);
 	if (
 		!isPossiblyType(type, t => isBooleanLiteralType(state, t, false)) &&
 		!isPossiblyType(type, t => isUndefinedType(t)) &&
@@ -21,43 +22,61 @@ export function transformConditionalExpression(state: TransformState, node: ts.C
 				createTruthinessChecks(state, condition, node.condition, state.getType(node.condition)),
 				"and",
 				whenTrue,
+				nodeSource,
 			),
 			"or",
 			whenFalse,
+			nodeSource,
 		);
 	}
 
-	const tempId = luau.tempId("result");
+	const tempId = luau.tempId("result", nodeSource);
 	state.prereq(
-		luau.create(luau.SyntaxKind.VariableDeclaration, {
-			left: tempId,
-			right: undefined,
-		}),
+		luau.create(
+			luau.SyntaxKind.VariableDeclaration,
+			{
+				left: tempId,
+				right: undefined,
+			},
+			nodeSource,
+		),
 	);
 
 	luau.list.push(
 		whenTruePrereqs,
-		luau.create(luau.SyntaxKind.Assignment, {
-			left: tempId,
-			operator: "=",
-			right: whenTrue,
-		}),
+		luau.create(
+			luau.SyntaxKind.Assignment,
+			{
+				left: tempId,
+				operator: "=",
+				right: whenTrue,
+			},
+			nodeSource,
+		),
 	);
 	luau.list.push(
 		whenFalsePrereqs,
-		luau.create(luau.SyntaxKind.Assignment, {
-			left: tempId,
-			operator: "=",
-			right: whenFalse,
-		}),
+		luau.create(
+			luau.SyntaxKind.Assignment,
+			{
+				left: tempId,
+				operator: "=",
+				right: whenFalse,
+			},
+			nodeSource,
+		),
 	);
 
 	state.prereq(
-		luau.create(luau.SyntaxKind.IfStatement, {
-			condition,
-			statements: whenTruePrereqs,
-			elseBody: whenFalsePrereqs,
-		}),
+		luau.create(
+			luau.SyntaxKind.IfStatement,
+			{
+				condition,
+				statements: whenTruePrereqs,
+				elseBody: whenFalsePrereqs,
+			},
+			nodeSource,
+		),
 	);
 
 	return tempId;

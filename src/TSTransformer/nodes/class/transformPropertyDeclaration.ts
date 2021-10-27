@@ -24,14 +24,23 @@ export function transformPropertyDeclaration(
 		return luau.list.make<luau.Statement>();
 	}
 
+	const nodeSource = luau.getNodeSource(node);
 	return luau.list.make(
-		luau.create(luau.SyntaxKind.Assignment, {
-			left: luau.create(luau.SyntaxKind.ComputedIndexExpression, {
-				expression: name,
-				index: transformObjectKey(state, node.name),
-			}),
-			operator: "=",
-			right: transformExpression(state, node.initializer),
-		}),
+		luau.create(
+			luau.SyntaxKind.Assignment,
+			{
+				left: luau.create(
+					luau.SyntaxKind.ComputedIndexExpression,
+					{
+						expression: name,
+						index: transformObjectKey(state, node.name),
+					},
+					nodeSource,
+				),
+				operator: "=",
+				right: transformExpression(state, node.initializer),
+			},
+			nodeSource,
+		),
 	);
 }

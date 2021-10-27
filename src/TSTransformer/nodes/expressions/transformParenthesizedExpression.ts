@@ -9,6 +9,6 @@ export function transformParenthesizedExpression(state: TransformState, node: ts
 	if (luau.isSimple(expression)) {
 		return expression;
 	} else {
-		return luau.create(luau.SyntaxKind.ParenthesizedExpression, { expression });
+		return luau.create(luau.SyntaxKind.ParenthesizedExpression, { expression }, luau.getNodeSource(node));
 	}
 }

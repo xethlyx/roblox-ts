@@ -19,6 +19,7 @@ export function transformClassConstructor(
 	originNode?: ts.ConstructorDeclaration & { body: ts.Block },
 ) {
 	const statements = luau.list.make<luau.Statement>();
+	const nodeSource = luau.getNodeSource(node);
 
 	let bodyStatements = originNode ? getStatements(originNode.body) : [];
 
@@ -43,12 +44,17 @@ export function transformClassConstructor(
 		hasDotDotDot = true;
 		luau.list.push(
 			statements,
-			luau.create(luau.SyntaxKind.CallStatement, {
-				expression: luau.call(luau.property(luau.globals.super, "constructor"), [
-					luau.globals.self,
-					luau.create(luau.SyntaxKind.VarArgsLiteral, {}),
-				]),
-			}),
+			luau.create(
+				luau.SyntaxKind.CallStatement,
+				{
+					expression: luau.call(
+						luau.property(luau.globals.super, "constructor", nodeSource),
+						[luau.globals.self, luau.create(luau.SyntaxKind.VarArgsLiteral, {}, nodeSource)],
+						nodeSource,
+					),
+				},
+				nodeSource,
+			),
 		);
 	}
 
@@ -71,11 +77,15 @@ export function transformClassConstructor(
 			const paramId = transformIdentifierDefined(state, parameter.name);
 			luau.list.push(
 				statements,
-				luau.create(luau.SyntaxKind.Assignment, {
-					left: luau.property(luau.globals.self, paramId.name),
-					operator: "=",
-					right: paramId,
-				}),
+				luau.create(
+					luau.SyntaxKind.Assignment,
+					{
+						left: luau.property(luau.globals.self, paramId.name, nodeSource),
+						operator: "=",
+						right: paramId,
+					},
+					nodeSource,
+				),
 			);
 		}
 	}
@@ -103,14 +113,22 @@ export function transformClassConstructor(
 
 			luau.list.push(
 				statements,
-				luau.create(luau.SyntaxKind.Assignment, {
-					left: luau.create(luau.SyntaxKind.ComputedIndexExpression, {
-						expression: luau.globals.self,
-						index,
-					}),
-					operator: "=",
-					right,
-				}),
+				luau.create(
+					luau.SyntaxKind.Assignment,
+					{
+						left: luau.create(
+							luau.SyntaxKind.ComputedIndexExpression,
+							{
+								expression: luau.globals.self,
+								index,
+							},
+							nodeSource,
+						),
+						operator: "=",
+						right,
+					},
+					nodeSource,
+				),
 			);
 		}
 	}
@@ -126,12 +144,16 @@ export function transformClassConstructor(
 	luau.list.pushList(statements, transformStatementList(state, bodyStatements));
 
 	return luau.list.make<luau.Statement>(
-		luau.create(luau.SyntaxKind.MethodDeclaration, {
-			expression: name,
-			name: isRoact ? "init" : "constructor",
-			statements,
-			parameters,
-			hasDotDotDot,
-		}),
+		luau.create(
+			luau.SyntaxKind.MethodDeclaration,
+			{
+				expression: name,
+				name: isRoact ? "init" : "constructor",
+				statements,
+				parameters,
+				hasDotDotDot,
+			},
+			nodeSource,
+		),
 	);
 }

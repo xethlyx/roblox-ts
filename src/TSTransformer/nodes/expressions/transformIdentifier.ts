@@ -21,9 +21,13 @@ export function transformIdentifierDefined(state: TransformState, node: ts.Ident
 		return replacementId;
 	}
 
-	return luau.create(luau.SyntaxKind.Identifier, {
-		name: node.text,
-	});
+	return luau.create(
+		luau.SyntaxKind.Identifier,
+		{
+			name: node.text,
+		},
+		luau.getNodeSource(node),
+	);
 }
 
 function getAncestorWhichIsChildOf(parent: ts.Node, node: ts.Node) {
@@ -122,8 +126,10 @@ export function transformIdentifier(state: TransformState, node: ts.Identifier) 
 		: state.typeChecker.getSymbolAtLocation(node);
 	assert(symbol);
 
+	const nodeSource = luau.getNodeSource(node);
+
 	if (state.typeChecker.isUndefinedSymbol(symbol)) {
-		return luau.nil();
+		return luau.nil(nodeSource);
 	} else if (state.typeChecker.isArgumentsSymbol(symbol)) {
 		DiagnosticService.addDiagnostic(errors.noArguments(node));
 	} else if (symbol === state.services.globalSymbols.globalThis) {
@@ -153,7 +159,7 @@ export function transformIdentifier(state: TransformState, node: ts.Identifier) 
 		state.services.macroManager.getCallMacro(symbol)
 	) {
 		DiagnosticService.addDiagnostic(errors.noMacroWithoutCall(node));
-		return luau.emptyId();
+		return luau.emptyId(nodeSource);
 	}
 
 	// exit here for export let so we don't check hoist later

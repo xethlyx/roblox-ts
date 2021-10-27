@@ -34,6 +34,8 @@ function transformPropertyAssignment(
 function transformSpreadAssignment(state: TransformState, ptr: MapPointer, property: ts.SpreadAssignment) {
 	const expType = state.typeChecker.getNonOptionalType(state.getType(property.expression));
 	const symbol = getFirstDefinedSymbol(state, expType);
+	const nodeSource = luau.getNodeSource(property);
+
 	if (symbol && state.services.macroManager.isMacroOnlyClass(symbol)) {
 		DiagnosticService.addDiagnostic(errors.noMacroObjectSpread(property));
 	}
@@ -48,35 +50,55 @@ function transformSpreadAssignment(state: TransformState, ptr: MapPointer, prope
 		spreadExp = state.pushToVarIfComplex(spreadExp, "spread");
 	}
 
-	const keyId = luau.tempId("k");
-	const valueId = luau.tempId("v");
-	let statement: luau.Statement = luau.create(luau.SyntaxKind.ForStatement, {
-		ids: luau.list.make(keyId, valueId),
-		expression: luau.call(luau.globals.pairs, [spreadExp]),
-		statements: luau.list.make(
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: luau.create(luau.SyntaxKind.ComputedIndexExpression, {
-					expression: ptr.value,
-					index: keyId,
-				}),
-				operator: "=",
-				right: valueId,
-			}),
-		),
-	});
+	const keyId = luau.tempId("k", nodeSource);
+	const valueId = luau.tempId("v", nodeSource);
+	let statement: luau.Statement = luau.create(
+		luau.SyntaxKind.ForStatement,
+		{
+			ids: luau.list.make(keyId, valueId),
+			expression: luau.call(luau.globals.pairs, [spreadExp], nodeSource),
+			statements: luau.list.make(
+				luau.create(
+					luau.SyntaxKind.Assignment,
+					{
+						left: luau.create(
+							luau.SyntaxKind.ComputedIndexExpression,
+							{
+								expression: ptr.value,
+								index: keyId,
+							},
+							nodeSource,
+						),
+						operator: "=",
+						right: valueId,
+					},
+					nodeSource,
+				),
+			),
+		},
+		nodeSource,
+	);
 
 	if (isPossiblyNonObject) {
-		statement = luau.create(luau.SyntaxKind.IfStatement, {
-			condition: createTypeCheck(spreadExp, luau.strings.table),
-			statements: luau.list.make(statement),
-			elseBody: luau.list.make(),
-		});
+		statement = luau.create(
+			luau.SyntaxKind.IfStatement,
+			{
+				condition: createTypeCheck(spreadExp, luau.strings.table),
+				statements: luau.list.make(statement),
+				elseBody: luau.list.make(),
+			},
+			nodeSource,
+		);
 	} else if (possiblyUndefined) {
-		statement = luau.create(luau.SyntaxKind.IfStatement, {
-			condition: spreadExp,
-			statements: luau.list.make(statement),
-			elseBody: luau.list.make(),
-		});
+		statement = luau.create(
+			luau.SyntaxKind.IfStatement,
+			{
+				condition: spreadExp,
+				statements: luau.list.make(statement),
+				elseBody: luau.list.make(),
+			},
+			nodeSource,
+		);
 	}
 
 	state.prereq(statement);

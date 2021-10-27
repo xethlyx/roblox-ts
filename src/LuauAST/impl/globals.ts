@@ -1,68 +1,83 @@
 import * as luau from "LuauAST/bundle";
 
-const COROUTINE_ID = luau.id("coroutine");
-const MATH_ID = luau.id("math");
-const STRING_ID = luau.id("string");
-const TABLE_ID = luau.id("table");
-const UTF8_ID = luau.id("utf8");
+// Ugly hack for now - this will be wiped in the sourcemaps
+// I should come up with a long-term solution
+const GLOBAL_NODE_SOURCE: luau.NodeSource = {
+	sourceFile: "internal",
+	character: 0,
+	line: 0,
+};
+
+export const globalId = (id: string) => luau.id(id, GLOBAL_NODE_SOURCE);
+export const globalString = (id: string) => luau.string(id, GLOBAL_NODE_SOURCE);
+export const globalProperty = (
+	expression: luau.IndexableExpression<keyof luau.IndexableExpressionByKind>,
+	name: string,
+) => luau.property(expression, name, GLOBAL_NODE_SOURCE);
+
+const COROUTINE_ID = globalId("coroutine");
+const MATH_ID = globalId("math");
+const STRING_ID = globalId("string");
+const TABLE_ID = globalId("table");
+const UTF8_ID = globalId("utf8");
 
 export const globals = {
-	TS: luau.id("TS"),
-	_G: luau.id("_G"),
-	assert: luau.id("assert"),
-	bit32: luau.id("bit32"),
+	TS: globalId("TS"),
+	_G: globalId("_G"),
+	assert: globalId("assert"),
+	bit32: globalId("bit32"),
 	coroutine: {
-		yield: luau.property(COROUTINE_ID, "yield"),
+		yield: globalProperty(COROUTINE_ID, "yield"),
 	},
-	error: luau.id("error"),
-	exports: luau.id("exports"),
-	getmetatable: luau.id("getmetatable"),
-	ipairs: luau.id("ipairs"),
-	next: luau.id("next"),
-	pairs: luau.id("pairs"),
-	pcall: luau.id("pcall"),
-	require: luau.id("require"),
-	script: luau.id("script"),
-	select: luau.id("select"),
-	self: luau.id("self"),
-	setmetatable: luau.id("setmetatable"),
+	error: globalId("error"),
+	exports: globalId("exports"),
+	getmetatable: globalId("getmetatable"),
+	ipairs: globalId("ipairs"),
+	next: globalId("next"),
+	pairs: globalId("pairs"),
+	pcall: globalId("pcall"),
+	require: globalId("require"),
+	script: globalId("script"),
+	select: globalId("select"),
+	self: globalId("self"),
+	setmetatable: globalId("setmetatable"),
 	string: {
-		byte: luau.property(STRING_ID, "byte"),
-		find: luau.property(STRING_ID, "find"),
-		format: luau.property(STRING_ID, "format"),
-		gmatch: luau.property(STRING_ID, "gmatch"),
-		gsub: luau.property(STRING_ID, "gsub"),
-		lower: luau.property(STRING_ID, "lower"),
-		match: luau.property(STRING_ID, "match"),
-		rep: luau.property(STRING_ID, "rep"),
-		reverse: luau.property(STRING_ID, "reverse"),
-		split: luau.property(STRING_ID, "split"),
-		sub: luau.property(STRING_ID, "sub"),
-		upper: luau.property(STRING_ID, "upper"),
+		byte: globalProperty(STRING_ID, "byte"),
+		find: globalProperty(STRING_ID, "find"),
+		format: globalProperty(STRING_ID, "format"),
+		gmatch: globalProperty(STRING_ID, "gmatch"),
+		gsub: globalProperty(STRING_ID, "gsub"),
+		lower: globalProperty(STRING_ID, "lower"),
+		match: globalProperty(STRING_ID, "match"),
+		rep: globalProperty(STRING_ID, "rep"),
+		reverse: globalProperty(STRING_ID, "reverse"),
+		split: globalProperty(STRING_ID, "split"),
+		sub: globalProperty(STRING_ID, "sub"),
+		upper: globalProperty(STRING_ID, "upper"),
 	},
-	super: luau.id("super"),
+	super: globalId("super"),
 	table: {
-		clear: luau.property(TABLE_ID, "clear"),
-		concat: luau.property(TABLE_ID, "concat"),
-		create: luau.property(TABLE_ID, "create"),
-		find: luau.property(TABLE_ID, "find"),
-		insert: luau.property(TABLE_ID, "insert"),
-		move: luau.property(TABLE_ID, "move"),
-		remove: luau.property(TABLE_ID, "remove"),
-		sort: luau.property(TABLE_ID, "sort"),
+		clear: globalProperty(TABLE_ID, "clear"),
+		concat: globalProperty(TABLE_ID, "concat"),
+		create: globalProperty(TABLE_ID, "create"),
+		find: globalProperty(TABLE_ID, "find"),
+		insert: globalProperty(TABLE_ID, "insert"),
+		move: globalProperty(TABLE_ID, "move"),
+		remove: globalProperty(TABLE_ID, "remove"),
+		sort: globalProperty(TABLE_ID, "sort"),
 	},
 	utf8: {
-		charpattern: luau.property(UTF8_ID, "charpattern"),
-		codes: luau.property(UTF8_ID, "codes"),
+		charpattern: globalProperty(UTF8_ID, "charpattern"),
+		codes: globalProperty(UTF8_ID, "codes"),
 	},
 	math: {
-		min: luau.property(MATH_ID, "min"),
+		min: globalProperty(MATH_ID, "min"),
 	},
-	tostring: luau.id("tostring"),
-	type: luau.id("type"),
-	typeof: luau.id("typeof"),
-	unpack: luau.id("unpack"),
+	tostring: globalId("tostring"),
+	type: globalId("type"),
+	typeof: globalId("typeof"),
+	unpack: globalId("unpack"),
 
 	// roblox
-	game: luau.id("game"),
+	game: globalId("game"),
 };

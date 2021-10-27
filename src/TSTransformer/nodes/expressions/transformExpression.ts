@@ -1,5 +1,4 @@
 import luau from "LuauAST";
-import { visit } from "LuauRenderer/util/visit";
 import { DiagnosticFactory, errors } from "Shared/diagnostics";
 import { assert } from "Shared/util/assert";
 import { TransformState } from "TSTransformer";
@@ -42,11 +41,11 @@ import { transformYieldExpression } from "TSTransformer/nodes/expressions/transf
 import { getKindName } from "TSTransformer/util/getKindName";
 import ts from "typescript";
 
-const NO_EMIT = () => luau.emptyId();
+const NO_EMIT = (state: TransformState, source: ts.Node) => luau.emptyId(luau.getNodeSource(source));
 
 const DIAGNOSTIC = (factory: DiagnosticFactory) => (state: TransformState, node: ts.Expression) => {
 	DiagnosticService.addDiagnostic(factory(node));
-	return NO_EMIT();
+	return NO_EMIT(state, node);
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,19 +103,6 @@ const TRANSFORMER_BY_KIND = new Map<ts.SyntaxKind, ExpressionTransformer>([
 
 export function transformExpression(state: TransformState, node: ts.Expression): luau.Expression {
 	const transformer = TRANSFORMER_BY_KIND.get(node.kind);
-	if (transformer) {
-		const transformed = transformer(state, node);
-		transformed.source = node.pos;
-
-		function visitChild(luauNode: luau.Node) {
-			luauNode.source = node.pos;
-		}
-
-		visit(transformed, {
-			before: visitChild,
-		});
-
-		return transformed;
-	}
+	if (transformer) return transformer(state, node);
 	assert(false, `Unknown expression: ${getKindName(node.kind)}`);
 }

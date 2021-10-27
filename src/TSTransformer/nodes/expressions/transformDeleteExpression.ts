@@ -6,6 +6,7 @@ import ts from "typescript";
 
 export function transformDeleteExpression(state: TransformState, node: ts.DeleteExpression) {
 	// we just want the prereqs
+	const nodeSource = luau.getNodeSource(node);
 	transformExpression(state, node.expression);
-	return isUsedAsStatement(node) ? luau.nil() : luau.bool(true);
+	return isUsedAsStatement(node) ? luau.nil(nodeSource) : luau.bool(true, nodeSource);
 }

@@ -23,19 +23,21 @@ export function transformElementAccessExpressionInner(
 	validateNotAnyType(state, node.expression);
 	validateNotAnyType(state, node.argumentExpression);
 
+	const nodeSource = luau.getNodeSource(node);
+
 	const expType = state.typeChecker.getNonOptionalType(state.getType(node.expression));
 	const symbol = getFirstDefinedSymbol(state, expType);
 	if (symbol) {
 		if (state.services.macroManager.getPropertyCallMacro(symbol)) {
 			DiagnosticService.addDiagnostic(errors.noMacroWithoutCall(node));
-			return luau.emptyId();
+			return luau.emptyId(nodeSource);
 		}
 	}
 
 	const parent = skipUpwards(node).parent;
 	if (!isValidMethodIndexWithoutCall(parent) && isMethod(state, node)) {
 		DiagnosticService.addDiagnostic(errors.noIndexWithoutCall(node));
-		return luau.emptyId();
+		return luau.emptyId(nodeSource);
 	}
 
 	if (ts.isPrototypeAccess(node)) {
@@ -44,7 +46,9 @@ export function transformElementAccessExpressionInner(
 
 	const constantValue = state.typeChecker.getConstantValue(node);
 	if (constantValue !== undefined) {
-		return typeof constantValue === "string" ? luau.string(constantValue) : luau.number(constantValue);
+		return typeof constantValue === "string"
+			? luau.string(constantValue, nodeSource)
+			: luau.number(constantValue, nodeSource);
 	}
 
 	const [index, prereqs] = state.capture(() => transformExpression(state, argumentExpression));
@@ -52,7 +56,7 @@ export function transformElementAccessExpressionInner(
 	if (!luau.list.isEmpty(prereqs)) {
 		// hack because wrapReturnIfLuaTuple will not wrap this, but now we need to!
 		if (isLuaTupleType(state, expType)) {
-			expression = luau.array([expression]);
+			expression = luau.array([expression], nodeSource);
 		}
 
 		expression = state.pushToVar(expression, "exp");
@@ -63,30 +67,42 @@ export function transformElementAccessExpressionInner(
 	if (luau.isCall(expression) && isLuaTupleType(state, expType)) {
 		// wrap in select() if it isn't the first value
 		if (!luau.isNumberLiteral(index) || Number(index.value) !== 0) {
-			expression = luau.call(luau.globals.select, [offset(index, 1), expression]);
+			expression = luau.call(luau.globals.select, [offset(index, 1), expression], nodeSource);
 		}
 		// parentheses to trim off the rest of the values
-		return luau.create(luau.SyntaxKind.ParenthesizedExpression, { expression });
+		return luau.create(luau.SyntaxKind.ParenthesizedExpression, { expression }, nodeSource);
 	}
 
 	if (ts.isDeleteExpression(parent)) {
 		state.prereq(
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: luau.create(luau.SyntaxKind.ComputedIndexExpression, {
-					expression: convertToIndexableExpression(expression),
-					index: addOneIfArrayType(state, expType, index),
-				}),
-				operator: "=",
-				right: luau.nil(),
-			}),
+			luau.create(
+				luau.SyntaxKind.Assignment,
+				{
+					left: luau.create(
+						luau.SyntaxKind.ComputedIndexExpression,
+						{
+							expression: convertToIndexableExpression(expression),
+							index: addOneIfArrayType(state, expType, index),
+						},
+						nodeSource,
+					),
+					operator: "=",
+					right: luau.nil(nodeSource),
+				},
+				nodeSource,
+			),
 		);
-		return luau.nil();
+		return luau.nil(nodeSource);
 	}
 
-	return luau.create(luau.SyntaxKind.ComputedIndexExpression, {
-		expression: convertToIndexableExpression(expression),
-		index: addOneIfArrayType(state, expType, index),
-	});
+	return luau.create(
+		luau.SyntaxKind.ComputedIndexExpression,
+		{
+			expression: convertToIndexableExpression(expression),
+			index: addOneIfArrayType(state, expType, index),
+		},
+		nodeSource,
+	);
 }
 
 export function transformElementAccessExpression(state: TransformState, node: ts.ElementAccessExpression) {

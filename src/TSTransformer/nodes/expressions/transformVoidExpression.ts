@@ -6,5 +6,5 @@ import ts from "typescript";
 
 export function transformVoidExpression(state: TransformState, node: ts.VoidExpression) {
 	state.prereqList(transformExpressionStatementInner(state, skipDownwards(node.expression)));
-	return luau.create(luau.SyntaxKind.NilLiteral, {});
+	return luau.create(luau.SyntaxKind.NilLiteral, {}, luau.getNodeSource(node));
 }

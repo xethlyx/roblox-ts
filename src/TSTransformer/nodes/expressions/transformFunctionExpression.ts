@@ -34,14 +34,20 @@ export function transformFunctionExpression(state: TransformState, node: ts.Func
 		statements = wrapStatementsAsGenerator(state, node, statements);
 	}
 
-	let expression: luau.Expression = luau.create(luau.SyntaxKind.FunctionExpression, {
-		hasDotDotDot,
-		parameters,
-		statements,
-	});
+	const nodeSource = luau.getNodeSource(node);
+
+	let expression: luau.Expression = luau.create(
+		luau.SyntaxKind.FunctionExpression,
+		{
+			hasDotDotDot,
+			parameters,
+			statements,
+		},
+		nodeSource,
+	);
 
 	if (isAsync) {
-		expression = luau.call(state.TS(node, "async"), [expression]);
+		expression = luau.call(state.TS(node, "async"), [expression], nodeSource);
 	}
 
 	return expression;

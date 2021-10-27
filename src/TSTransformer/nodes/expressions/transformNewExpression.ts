@@ -20,5 +20,6 @@ export function transformNewExpression(state: TransformState, node: ts.NewExpres
 
 	const expression = convertToIndexableExpression(transformExpression(state, node.expression));
 	const args = node.arguments ? ensureTransformOrder(state, node.arguments) : [];
-	return luau.call(luau.property(expression, "new"), args);
+	const nodeSource = luau.getNodeSource(node);
+	return luau.call(luau.property(expression, "new", nodeSource), args, nodeSource);
 }

@@ -11,15 +11,21 @@ export function transformContinueStatement(state: TransformState, node: ts.Conti
 		return luau.list.make<luau.Statement>();
 	}
 
+	const nodeSource = luau.getNodeSource(node);
+
 	if (isBreakBlockedByTryStatement(node)) {
 		state.markTryUses("usesContinue");
 
 		return luau.list.make(
-			luau.create(luau.SyntaxKind.ReturnStatement, {
-				expression: state.TS(node, "TRY_CONTINUE"),
-			}),
+			luau.create(
+				luau.SyntaxKind.ReturnStatement,
+				{
+					expression: state.TS(node, "TRY_CONTINUE"),
+				},
+				nodeSource,
+			),
 		);
 	}
 
-	return luau.list.make(luau.create(luau.SyntaxKind.ContinueStatement, {}));
+	return luau.list.make(luau.create(luau.SyntaxKind.ContinueStatement, {}, nodeSource));
 }

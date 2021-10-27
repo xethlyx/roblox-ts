@@ -1,10 +1,11 @@
 import luau from "LuauAST";
+import { NodeSource } from "LuauAST/bundle";
 
 // base types
 export interface Node<T extends luau.SyntaxKind = luau.SyntaxKind> {
 	kind: T;
 	parent?: luau.Node;
-	source?: number;
+	source: NodeSource;
 }
 
 export interface IndexableExpression<

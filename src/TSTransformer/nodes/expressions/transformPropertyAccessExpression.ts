@@ -21,17 +21,18 @@ export function transformPropertyAccessExpressionInner(
 
 	const expType = state.typeChecker.getNonOptionalType(state.getType(node));
 	const symbol = getFirstDefinedSymbol(state, expType);
+	const nodeSource = luau.getNodeSource(node);
 	if (symbol) {
 		if (state.services.macroManager.getPropertyCallMacro(symbol)) {
 			DiagnosticService.addDiagnostic(errors.noMacroWithoutCall(node));
-			return luau.emptyId();
+			return luau.emptyId(nodeSource);
 		}
 	}
 
 	const parent = skipUpwards(node).parent;
 	if (!isValidMethodIndexWithoutCall(parent) && isMethod(state, node)) {
 		DiagnosticService.addDiagnostic(errors.noIndexWithoutCall(node));
-		return luau.emptyId();
+		return luau.emptyId(nodeSource);
 	}
 
 	if (ts.isPrototypeAccess(node)) {
@@ -40,27 +41,33 @@ export function transformPropertyAccessExpressionInner(
 
 	const constantValue = state.typeChecker.getConstantValue(node);
 	if (constantValue !== undefined) {
-		return typeof constantValue === "string" ? luau.string(constantValue) : luau.number(constantValue);
+		return typeof constantValue === "string"
+			? luau.string(constantValue, nodeSource)
+			: luau.number(constantValue, nodeSource);
 	}
 
 	if (ts.isDeleteExpression(parent)) {
 		state.prereq(
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: luau.property(convertToIndexableExpression(expression), name),
-				operator: "=",
-				right: luau.nil(),
-			}),
+			luau.create(
+				luau.SyntaxKind.Assignment,
+				{
+					left: luau.property(convertToIndexableExpression(expression), name, nodeSource),
+					operator: "=",
+					right: luau.nil(nodeSource),
+				},
+				nodeSource,
+			),
 		);
-		return luau.nil();
+		return luau.nil(nodeSource);
 	}
 
-	return luau.property(convertToIndexableExpression(expression), name);
+	return luau.property(convertToIndexableExpression(expression), name, nodeSource);
 }
 
 export function transformPropertyAccessExpression(state: TransformState, node: ts.PropertyAccessExpression) {
 	if (ts.isSuperProperty(node)) {
 		DiagnosticService.addDiagnostic(errors.noSuperProperty(node));
-		return luau.emptyId();
+		return luau.emptyId(luau.getNodeSource(node));
 	}
 
 	return transformOptionalChain(state, node);

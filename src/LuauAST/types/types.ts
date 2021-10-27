@@ -18,3 +18,9 @@ export type BinaryOperator =
 export type UnaryOperator = "-" | "not" | "#";
 
 export type AssignmentOperator = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "^=" | "..=";
+
+export interface NodeSource {
+	sourceFile: string;
+	line: number;
+	character: number;
+}

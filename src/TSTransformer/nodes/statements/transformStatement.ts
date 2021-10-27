@@ -87,12 +87,6 @@ export function transformStatement(state: TransformState, node: ts.Statement): l
 	// `declare` tells us that the identifier of the node is defined somewhere else and we should trust it
 	if (node.modifiers?.some(v => v.kind === ts.SyntaxKind.DeclareKeyword)) return NO_EMIT();
 	const transformer = TRANSFORMER_BY_KIND.get(node.kind);
-	if (transformer) {
-		const list = transformer(state, node);
-		luau.list.forEachListNode(list, luauNode => {
-			luauNode.value.source = node.pos;
-		});
-		return list;
-	}
+	if (transformer) return transformer(state, node);
 	assert(false, `Unknown statement: ${getKindName(node.kind)}`);
 }

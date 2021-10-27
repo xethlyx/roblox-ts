@@ -1,10 +1,10 @@
+import luau from "LuauAST";
 import { RenderState } from "LuauRenderer";
 
 export function mapStatements(state: RenderState) {
-	const result: Record<number, number> = {};
+	const result: Record<number, luau.NodeSource> = {};
 
 	for (const [node, luauPosition] of state.positionMapping.entries()) {
-		if (node.source === undefined) continue;
 		result[luauPosition] = node.source;
 	}
 

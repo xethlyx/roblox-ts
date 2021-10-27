@@ -40,11 +40,15 @@ export function transformArrayBindingLiteral(
 			) {
 				const id = transformWritableExpression(state, element, initializer !== undefined);
 				state.prereq(
-					luau.create(luau.SyntaxKind.Assignment, {
-						left: id,
-						operator: "=",
-						right: value,
-					}),
+					luau.create(
+						luau.SyntaxKind.Assignment,
+						{
+							left: id,
+							operator: "=",
+							right: value,
+						},
+						luau.getNodeSource(bindingLiteral),
+					),
 				);
 				if (initializer) {
 					state.prereq(transformInitializer(state, id, initializer));

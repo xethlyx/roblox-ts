@@ -14,7 +14,7 @@ export function transformBindingName(
 	if (ts.isIdentifier(name)) {
 		id = transformIdentifierDefined(state, name);
 	} else {
-		id = luau.tempId("binding");
+		id = luau.tempId("binding", luau.getNodeSource(name));
 		luau.list.pushList(
 			initializers,
 			state.capturePrereqs(() => {

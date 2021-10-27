@@ -11,6 +11,7 @@ export * from "LuauAST/impl/typeGuards";
 
 // util
 export * from "LuauAST/util/getKindName";
+export * from "LuauAST/util/getNodeSource";
 export * from "LuauAST/util/isMetamethod";
 export * from "LuauAST/util/isReservedClassField";
 export * from "LuauAST/util/isReservedIdentifier";

@@ -11,15 +11,21 @@ export function transformBreakStatement(state: TransformState, node: ts.BreakSta
 		return luau.list.make<luau.Statement>();
 	}
 
+	const nodeSource = luau.getNodeSource(node);
+
 	if (isBreakBlockedByTryStatement(node)) {
 		state.markTryUses("usesBreak");
 
 		return luau.list.make(
-			luau.create(luau.SyntaxKind.ReturnStatement, {
-				expression: state.TS(node, "TRY_BREAK"),
-			}),
+			luau.create(
+				luau.SyntaxKind.ReturnStatement,
+				{
+					expression: state.TS(node, "TRY_BREAK"),
+				},
+				nodeSource,
+			),
 		);
 	}
 
-	return luau.list.make(luau.create(luau.SyntaxKind.BreakStatement, {}));
+	return luau.list.make(luau.create(luau.SyntaxKind.BreakStatement, {}, nodeSource));
 }

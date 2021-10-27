@@ -40,9 +40,9 @@ export function transformTemplateExpression(state: TransformState, node: ts.Temp
 				DiagnosticService.addDiagnostic(errors.noLuaTupleInTemplateExpression(templateSpan.expression));
 			}
 			if (luau.isCall(expression) && isPossiblyType(type, t => isUndefinedType(t))) {
-				expression = luau.create(luau.SyntaxKind.ParenthesizedExpression, { expression });
+				expression = luau.create(luau.SyntaxKind.ParenthesizedExpression, { expression }, expression.source);
 			}
-			expression = luau.call(luau.globals.tostring, [expression]);
+			expression = luau.call(luau.globals.tostring, [expression], expression.source);
 		}
 		expressions.push(expression);
 

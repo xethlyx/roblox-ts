@@ -32,12 +32,13 @@ function transformLuaTupleDestructure(
 	accessType: ts.Type,
 ) {
 	let index = 0;
+	const nodeSource = luau.getNodeSource(bindingLiteral);
 	const variables = luau.list.make<luau.TemporaryIdentifier>();
 	const writes = luau.list.make<luau.WritableExpression>();
 	const statements = state.capturePrereqs(() => {
 		for (let element of bindingLiteral.elements) {
 			if (ts.isOmittedExpression(element)) {
-				luau.list.push(writes, luau.emptyId());
+				luau.list.push(writes, luau.emptyId(nodeSource));
 			} else if (ts.isSpreadElement(element)) {
 				DiagnosticService.addDiagnostic(errors.noSpreadDestructuring(element));
 			} else {
@@ -58,7 +59,7 @@ function transformLuaTupleDestructure(
 						state.prereq(transformInitializer(state, id, initializer));
 					}
 				} else if (ts.isArrayLiteralExpression(element)) {
-					const id = luau.tempId("binding");
+					const id = luau.tempId("binding", nodeSource);
 					luau.list.push(variables, id);
 					luau.list.push(writes, id);
 					if (initializer) {
@@ -66,7 +67,7 @@ function transformLuaTupleDestructure(
 					}
 					transformArrayBindingLiteral(state, element, id, getSubType(state, accessType, index));
 				} else if (ts.isObjectLiteralExpression(element)) {
-					const id = luau.tempId("binding");
+					const id = luau.tempId("binding", nodeSource);
 					luau.list.push(variables, id);
 					luau.list.push(writes, id);
 					if (initializer) {
@@ -82,34 +83,50 @@ function transformLuaTupleDestructure(
 	});
 	if (!luau.list.isEmpty(variables)) {
 		state.prereq(
-			luau.create(luau.SyntaxKind.VariableDeclaration, {
-				left: variables,
-				right: undefined,
-			}),
+			luau.create(
+				luau.SyntaxKind.VariableDeclaration,
+				{
+					left: variables,
+					right: undefined,
+				},
+				nodeSource,
+			),
 		);
 	}
 	if (luau.list.isEmpty(writes)) {
 		if (luau.isCall(value)) {
 			state.prereq(
-				luau.create(luau.SyntaxKind.CallStatement, {
-					expression: value,
-				}),
+				luau.create(
+					luau.SyntaxKind.CallStatement,
+					{
+						expression: value,
+					},
+					nodeSource,
+				),
 			);
 		} else {
 			state.prereq(
-				luau.create(luau.SyntaxKind.VariableDeclaration, {
-					left: luau.list.make(luau.emptyId()),
-					right: value,
-				}),
+				luau.create(
+					luau.SyntaxKind.VariableDeclaration,
+					{
+						left: luau.list.make(luau.emptyId(nodeSource)),
+						right: value,
+					},
+					nodeSource,
+				),
 			);
 		}
 	} else {
 		state.prereq(
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: writes,
-				operator: "=",
-				right: value,
-			}),
+			luau.create(
+				luau.SyntaxKind.Assignment,
+				{
+					left: writes,
+					operator: "=",
+					right: value,
+				},
+				nodeSource,
+			),
 		);
 	}
 	state.prereqList(statements);
@@ -117,6 +134,7 @@ function transformLuaTupleDestructure(
 
 export function transformBinaryExpression(state: TransformState, node: ts.BinaryExpression) {
 	const operatorKind = node.operatorToken.kind;
+	const nodeSource = luau.getNodeSource(node);
 
 	validateNotAnyType(state, node.left);
 	validateNotAnyType(state, node.right);
@@ -124,13 +142,13 @@ export function transformBinaryExpression(state: TransformState, node: ts.Binary
 	// banned
 	if (operatorKind === ts.SyntaxKind.EqualsEqualsToken) {
 		DiagnosticService.addDiagnostic(errors.noEqualsEquals(node));
-		return luau.emptyId();
+		return luau.emptyId(nodeSource);
 	} else if (operatorKind === ts.SyntaxKind.ExclamationEqualsToken) {
 		DiagnosticService.addDiagnostic(errors.noExclamationEquals(node));
-		return luau.emptyId();
+		return luau.emptyId(nodeSource);
 	} else if (operatorKind === ts.SyntaxKind.CommaToken) {
 		DiagnosticService.addDiagnostic(errors.noComma(node));
-		return luau.emptyId();
+		return luau.emptyId(nodeSource);
 	}
 
 	// logical
@@ -157,7 +175,7 @@ export function transformBinaryExpression(state: TransformState, node: ts.Binary
 				if (!isUsedAsStatement(node)) {
 					DiagnosticService.addDiagnostic(errors.noDestructureAssignmentExpression(node));
 				}
-				return luau.emptyId();
+				return luau.emptyId(nodeSource);
 			}
 
 			const parentId = state.pushToVar(rightExp, "binding");
@@ -186,7 +204,7 @@ export function transformBinaryExpression(state: TransformState, node: ts.Binary
 				writable,
 				operator,
 				operator === "..=" && !isDefinitelyType(valueType, t => isStringType(t))
-					? luau.call(luau.globals.tostring, [value])
+					? luau.call(luau.globals.tostring, [value], nodeSource)
 					: value,
 			);
 		} else {
@@ -207,15 +225,20 @@ export function transformBinaryExpression(state: TransformState, node: ts.Binary
 
 	if (operatorKind === ts.SyntaxKind.InKeyword) {
 		return luau.binary(
-			luau.create(luau.SyntaxKind.ComputedIndexExpression, {
-				expression: convertToIndexableExpression(right),
-				index: left,
-			}),
+			luau.create(
+				luau.SyntaxKind.ComputedIndexExpression,
+				{
+					expression: convertToIndexableExpression(right),
+					index: left,
+				},
+				nodeSource,
+			),
 			"~=",
-			luau.nil(),
+			luau.nil(nodeSource),
+			nodeSource,
 		);
 	} else if (operatorKind === ts.SyntaxKind.InstanceOfKeyword) {
-		return luau.call(state.TS(node, "instanceof"), [left, right]);
+		return luau.call(state.TS(node, "instanceof"), [left, right], nodeSource);
 	}
 
 	const leftType = state.getType(node.left);

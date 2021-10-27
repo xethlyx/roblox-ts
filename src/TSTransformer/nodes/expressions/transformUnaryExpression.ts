@@ -13,25 +13,34 @@ import ts from "typescript";
 
 export function transformPostfixUnaryExpression(state: TransformState, node: ts.PostfixUnaryExpression) {
 	validateNotAnyType(state, node.operand);
+	const nodeSource = luau.getNodeSource(node);
 
 	const writable = transformWritableExpression(state, node.operand, true);
-	const origValue = luau.tempId("original");
+	const origValue = luau.tempId("original", nodeSource);
 
 	state.prereq(
-		luau.create(luau.SyntaxKind.VariableDeclaration, {
-			left: origValue,
-			right: writable,
-		}),
+		luau.create(
+			luau.SyntaxKind.VariableDeclaration,
+			{
+				left: origValue,
+				right: writable,
+			},
+			nodeSource,
+		),
 	);
 
 	const operator: luau.AssignmentOperator = node.operator === ts.SyntaxKind.PlusPlusToken ? "+=" : "-=";
 
 	state.prereq(
-		luau.create(luau.SyntaxKind.Assignment, {
-			left: writable,
-			operator,
-			right: luau.number(1),
-		}),
+		luau.create(
+			luau.SyntaxKind.Assignment,
+			{
+				left: writable,
+				operator,
+				right: luau.number(1, nodeSource),
+			},
+			nodeSource,
+		),
 	);
 
 	return origValue;
@@ -39,16 +48,21 @@ export function transformPostfixUnaryExpression(state: TransformState, node: ts.
 
 export function transformPrefixUnaryExpression(state: TransformState, node: ts.PrefixUnaryExpression) {
 	validateNotAnyType(state, node.operand);
+	const nodeSource = luau.getNodeSource(node);
 
 	if (node.operator === ts.SyntaxKind.PlusPlusToken || node.operator === ts.SyntaxKind.MinusMinusToken) {
 		const writable = transformWritableExpression(state, node.operand, true);
 		const operator: luau.AssignmentOperator = node.operator === ts.SyntaxKind.PlusPlusToken ? "+=" : "-=";
 		state.prereq(
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: writable,
-				operator,
-				right: luau.number(1),
-			}),
+			luau.create(
+				luau.SyntaxKind.Assignment,
+				{
+					left: writable,
+					operator,
+					right: luau.number(1, nodeSource),
+				},
+				nodeSource,
+			),
 		);
 		return writable;
 	} else if (node.operator === ts.SyntaxKind.PlusToken) {
@@ -58,7 +72,7 @@ export function transformPrefixUnaryExpression(state: TransformState, node: ts.P
 		if (!isDefinitelyType(state.getType(node.operand), t => isNumberType(t))) {
 			DiagnosticService.addDiagnostic(errors.noNonNumberUnaryMinus(node));
 		}
-		return luau.unary("-", transformExpression(state, node.operand));
+		return luau.unary("-", transformExpression(state, node.operand), nodeSource);
 	} else if (node.operator === ts.SyntaxKind.ExclamationToken) {
 		const checks = createTruthinessChecks(
 			state,
@@ -66,9 +80,13 @@ export function transformPrefixUnaryExpression(state: TransformState, node: ts.P
 			node.operand,
 			state.getType(node.operand),
 		);
-		return luau.unary("not", checks);
+		return luau.unary("not", checks, nodeSource);
 	} else if (node.operator === ts.SyntaxKind.TildeToken) {
-		return luau.call(luau.property(luau.globals.bit32, "bnot"), [transformExpression(state, node.operand)]);
+		return luau.call(
+			luau.property(luau.globals.bit32, "bnot", nodeSource),
+			[transformExpression(state, node.operand)],
+			nodeSource,
+		);
 	}
 	assert(false, `Unsupported PrefixUnaryExpression operator: ${getKindName(node.operator)}`);
 }

@@ -24,16 +24,24 @@ function getConstructor(node: ts.ClassLikeDeclaration): (ts.ConstructorDeclarati
 	);
 }
 
-function createNameFunction(name: string) {
-	return luau.create(luau.SyntaxKind.FunctionExpression, {
-		statements: luau.list.make(
-			luau.create(luau.SyntaxKind.ReturnStatement, {
-				expression: luau.string(name),
-			}),
-		),
-		parameters: luau.list.make(),
-		hasDotDotDot: false,
-	});
+function createNameFunction(name: string, nodeSource: luau.NodeSource) {
+	return luau.create(
+		luau.SyntaxKind.FunctionExpression,
+		{
+			statements: luau.list.make(
+				luau.create(
+					luau.SyntaxKind.ReturnStatement,
+					{
+						expression: luau.string(name, nodeSource),
+					},
+					nodeSource,
+				),
+			),
+			parameters: luau.list.make(),
+			hasDotDotDot: false,
+		},
+		nodeSource,
+	);
 }
 
 function createRoactBoilerplate(
@@ -45,6 +53,8 @@ function createRoactBoilerplate(
 	const extendsNode = getExtendsNode(node);
 	assert(extendsNode);
 
+	const nodeSource = luau.getNodeSource(node);
+
 	const statements = luau.list.make<luau.Statement>();
 
 	const [extendsExp, extendsExpPrereqs] = state.capture(() => transformExpression(state, extendsNode.expression));
@@ -52,28 +62,40 @@ function createRoactBoilerplate(
 
 	const classNameStr = luau.isIdentifier(className) ? className.name : "Anonymous";
 
-	const right = luau.create(luau.SyntaxKind.MethodCallExpression, {
-		expression: convertToIndexableExpression(extendsExp),
-		name: "extend",
-		args: luau.list.make(luau.string(classNameStr)),
-	});
+	const right = luau.create(
+		luau.SyntaxKind.MethodCallExpression,
+		{
+			expression: convertToIndexableExpression(extendsExp),
+			name: "extend",
+			args: luau.list.make(luau.string(classNameStr, nodeSource)),
+		},
+		nodeSource,
+	);
 
 	if (isClassExpression && node.name) {
 		luau.list.push(
 			statements,
-			luau.create(luau.SyntaxKind.VariableDeclaration, {
-				left: transformIdentifierDefined(state, node.name),
-				right,
-			}),
+			luau.create(
+				luau.SyntaxKind.VariableDeclaration,
+				{
+					left: transformIdentifierDefined(state, node.name),
+					right,
+				},
+				nodeSource,
+			),
 		);
 	} else {
 		luau.list.push(
 			statements,
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: className,
-				operator: "=",
-				right,
-			}),
+			luau.create(
+				luau.SyntaxKind.Assignment,
+				{
+					left: className,
+					operator: "=",
+					right,
+				},
+				nodeSource,
+			),
 		);
 	}
 
@@ -98,6 +120,7 @@ function createBoilerplate(
 ) {
 	const isAbstract = !!ts.getSelectedSyntacticModifierFlags(node, ts.ModifierFlags.Abstract);
 	const statements = luau.list.make<luau.Statement>();
+	const nodeSource = luau.getNodeSource(node);
 
 	/* boilerplate:
 		className = setmetatable({}, {
@@ -124,20 +147,31 @@ function createBoilerplate(
 	if (isAbstract && !extendsNode) {
 		luau.list.push(
 			statements,
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: className,
-				operator: "=",
-				right: luau.mixedTable(),
-			}),
+			luau.create(
+				luau.SyntaxKind.Assignment,
+				{
+					left: className,
+					operator: "=",
+					right: luau.mixedTable([], nodeSource),
+				},
+				nodeSource,
+			),
 		);
 	} else {
 		const metatableFields = luau.list.make<luau.MapField>();
 		luau.list.push(
 			metatableFields,
-			luau.create(luau.SyntaxKind.MapField, {
-				index: luau.strings.__tostring,
-				value: createNameFunction(luau.isTemporaryIdentifier(className) ? "Anonymous" : className.name),
-			}),
+			luau.create(
+				luau.SyntaxKind.MapField,
+				{
+					index: luau.strings.__tostring,
+					value: createNameFunction(
+						luau.isTemporaryIdentifier(className) ? "Anonymous" : className.name,
+						nodeSource,
+					),
+				},
+				nodeSource,
+			),
 		);
 
 		if (extendsNode) {
@@ -149,56 +183,77 @@ function createBoilerplate(
 			const [extendsExp, extendsExpPrereqs] = state.capture(() =>
 				transformExpression(state, extendsNode.expression),
 			);
-			const superId = luau.id("super");
+			const superId = luau.id("super", nodeSource);
 			luau.list.pushList(statements, extendsExpPrereqs);
 			luau.list.push(
 				statements,
-				luau.create(luau.SyntaxKind.VariableDeclaration, {
-					left: superId,
-					right: extendsExp,
-				}),
+				luau.create(
+					luau.SyntaxKind.VariableDeclaration,
+					{
+						left: superId,
+						right: extendsExp,
+					},
+					nodeSource,
+				),
 			);
 			luau.list.push(
 				metatableFields,
-				luau.create(luau.SyntaxKind.MapField, {
-					index: luau.strings.__index,
-					value: superId,
-				}),
+				luau.create(
+					luau.SyntaxKind.MapField,
+					{
+						index: luau.strings.__index,
+						value: superId,
+					},
+					nodeSource,
+				),
 			);
 		}
 
-		const metatable = luau.call(luau.globals.setmetatable, [
-			luau.map(),
-			luau.create(luau.SyntaxKind.Map, { fields: metatableFields }),
-		]);
+		const metatable = luau.call(
+			luau.globals.setmetatable,
+			[luau.map([], nodeSource), luau.create(luau.SyntaxKind.Map, { fields: metatableFields }, nodeSource)],
+			nodeSource,
+		);
 
 		if (isClassExpression && node.name) {
 			luau.list.push(
 				statements,
-				luau.create(luau.SyntaxKind.VariableDeclaration, {
-					left: transformIdentifierDefined(state, node.name),
-					right: metatable,
-				}),
+				luau.create(
+					luau.SyntaxKind.VariableDeclaration,
+					{
+						left: transformIdentifierDefined(state, node.name),
+						right: metatable,
+					},
+					nodeSource,
+				),
 			);
 		} else {
 			luau.list.push(
 				statements,
-				luau.create(luau.SyntaxKind.Assignment, {
-					left: className,
-					operator: "=",
-					right: metatable,
-				}),
+				luau.create(
+					luau.SyntaxKind.Assignment,
+					{
+						left: className,
+						operator: "=",
+						right: metatable,
+					},
+					nodeSource,
+				),
 			);
 		}
 
 		//	className.__index = className;
 		luau.list.push(
 			statements,
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: luau.property(className, "__index"),
-				operator: "=",
-				right: className,
-			}),
+			luau.create(
+				luau.SyntaxKind.Assignment,
+				{
+					left: luau.property(className, "__index", nodeSource),
+					operator: "=",
+					right: className,
+				},
+				nodeSource,
+			),
 		);
 	}
 
@@ -209,39 +264,56 @@ function createBoilerplate(
 		//	local self = setmetatable({}, className);
 		luau.list.push(
 			statementsInner,
-			luau.create(luau.SyntaxKind.VariableDeclaration, {
-				left: luau.globals.self,
-				right: luau.call(luau.globals.setmetatable, [luau.map(), className]),
-			}),
+			luau.create(
+				luau.SyntaxKind.VariableDeclaration,
+				{
+					left: luau.globals.self,
+					right: luau.call(luau.globals.setmetatable, [luau.map([], nodeSource), className], nodeSource),
+				},
+				nodeSource,
+			),
 		);
 
 		//	return self:constructor(...) or self;
 		luau.list.push(
 			statementsInner,
-			luau.create(luau.SyntaxKind.ReturnStatement, {
-				expression: luau.binary(
-					luau.create(luau.SyntaxKind.MethodCallExpression, {
-						expression: luau.globals.self,
-						name: "constructor",
-						args: luau.list.make(luau.create(luau.SyntaxKind.VarArgsLiteral, {})),
-					}),
-					"or",
-					luau.globals.self,
-				),
-			}),
+			luau.create(
+				luau.SyntaxKind.ReturnStatement,
+				{
+					expression: luau.binary(
+						luau.create(
+							luau.SyntaxKind.MethodCallExpression,
+							{
+								expression: luau.globals.self,
+								name: "constructor",
+								args: luau.list.make(luau.create(luau.SyntaxKind.VarArgsLiteral, {}, nodeSource)),
+							},
+							nodeSource,
+						),
+						"or",
+						luau.globals.self,
+						nodeSource,
+					),
+				},
+				nodeSource,
+			),
 		);
 
 		//	function className.new(...)
 		//	end;
 		luau.list.push(
 			statements,
-			luau.create(luau.SyntaxKind.FunctionDeclaration, {
-				name: luau.property(className, "new"),
-				parameters: luau.list.make(),
-				hasDotDotDot: true,
-				statements: statementsInner,
-				localize: false,
-			}),
+			luau.create(
+				luau.SyntaxKind.FunctionDeclaration,
+				{
+					name: luau.property(className, "new", nodeSource),
+					parameters: luau.list.make(),
+					hasDotDotDot: true,
+					statements: statementsInner,
+					localize: false,
+				},
+				nodeSource,
+			),
 		);
 	}
 
@@ -295,22 +367,23 @@ export function transformClassLikeDeclaration(state: TransformState, node: ts.Cl
 		end
 	*/
 
+	const nodeSource = luau.getNodeSource(node);
 	const shouldUseInternalName = isClassExpression && node.name !== undefined;
 
 	let returnVar: luau.Identifier | luau.TemporaryIdentifier;
 	if (shouldUseInternalName) {
-		returnVar = luau.tempId("class");
+		returnVar = luau.tempId("class", nodeSource);
 	} else if (node.name) {
 		returnVar = transformIdentifierDefined(state, node.name);
 	} else if (isExportDefault) {
-		returnVar = luau.id("default");
+		returnVar = luau.id("default", nodeSource);
 	} else {
-		returnVar = luau.tempId("class");
+		returnVar = luau.tempId("class", nodeSource);
 	}
 
 	let internalName: luau.Identifier | luau.TemporaryIdentifier;
 	if (shouldUseInternalName) {
-		internalName = node.name ? transformIdentifierDefined(state, node.name) : luau.tempId("class");
+		internalName = node.name ? transformIdentifierDefined(state, node.name) : luau.tempId("class", nodeSource);
 	} else {
 		internalName = returnVar;
 	}
@@ -318,10 +391,14 @@ export function transformClassLikeDeclaration(state: TransformState, node: ts.Cl
 	if (!isClassHoisted(state, node)) {
 		luau.list.push(
 			statements,
-			luau.create(luau.SyntaxKind.VariableDeclaration, {
-				left: returnVar,
-				right: undefined,
-			}),
+			luau.create(
+				luau.SyntaxKind.VariableDeclaration,
+				{
+					left: returnVar,
+					right: undefined,
+				},
+				nodeSource,
+			),
 		);
 	}
 
@@ -406,21 +483,33 @@ export function transformClassLikeDeclaration(state: TransformState, node: ts.Cl
 	if (toStringProperty && !!(toStringProperty.flags & ts.SymbolFlags.Method)) {
 		luau.list.push(
 			statementsInner,
-			luau.create(luau.SyntaxKind.MethodDeclaration, {
-				expression: internalName,
-				name: "__tostring",
-				hasDotDotDot: false,
-				parameters: luau.list.make(),
-				statements: luau.list.make(
-					luau.create(luau.SyntaxKind.ReturnStatement, {
-						expression: luau.create(luau.SyntaxKind.MethodCallExpression, {
-							expression: luau.globals.self,
-							name: MAGIC_TO_STRING_METHOD,
-							args: luau.list.make(),
-						}),
-					}),
-				),
-			}),
+			luau.create(
+				luau.SyntaxKind.MethodDeclaration,
+				{
+					expression: internalName,
+					name: "__tostring",
+					hasDotDotDot: false,
+					parameters: luau.list.make(),
+					statements: luau.list.make(
+						luau.create(
+							luau.SyntaxKind.ReturnStatement,
+							{
+								expression: luau.create(
+									luau.SyntaxKind.MethodCallExpression,
+									{
+										expression: luau.globals.self,
+										name: MAGIC_TO_STRING_METHOD,
+										args: luau.list.make(),
+									},
+									nodeSource,
+								),
+							},
+							nodeSource,
+						),
+					),
+				},
+				nodeSource,
+			),
 		);
 	}
 
@@ -432,19 +521,27 @@ export function transformClassLikeDeclaration(state: TransformState, node: ts.Cl
 	if (shouldUseInternalName) {
 		luau.list.push(
 			statementsInner,
-			luau.create(luau.SyntaxKind.Assignment, {
-				left: returnVar,
-				operator: "=",
-				right: internalName,
-			}),
+			luau.create(
+				luau.SyntaxKind.Assignment,
+				{
+					left: returnVar,
+					operator: "=",
+					right: internalName,
+				},
+				nodeSource,
+			),
 		);
 	}
 
 	luau.list.push(
 		statements,
-		luau.create(luau.SyntaxKind.DoStatement, {
-			statements: statementsInner,
-		}),
+		luau.create(
+			luau.SyntaxKind.DoStatement,
+			{
+				statements: statementsInner,
+			},
+			nodeSource,
+		),
 	);
 
 	return { statements, name: returnVar };
