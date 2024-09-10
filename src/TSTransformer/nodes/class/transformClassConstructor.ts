@@ -19,7 +19,7 @@ export function transformClassConstructor(
 ) {
 	const statements = luau.list.make<luau.Statement>();
 
-	let bodyStatements = originNode ? getStatements(originNode.body) : [];
+	const bodyStatements = originNode ? getStatements(originNode.body) : [];
 
 	let removeFirstSuper = false;
 
